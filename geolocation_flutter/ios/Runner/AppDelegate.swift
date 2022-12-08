@@ -1,5 +1,7 @@
 import UIKit
 import Flutter
+import background_locator
+import flutter_local_notifications
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,7 +13,17 @@ import Flutter
         UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
       }
       GeneratedPluginRegistrant.register(with: self)
-
+      BackgroundLocatorPlugin.setPluginRegistrantCallback(registerPlugins)
+      registerOtherPlugins()
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+    
+    func registerOtherPlugins() {
+    }
+}
+
+func registerPlugins(registry: FlutterPluginRegistry) -> () {
+    if (!registry.hasPlugin("BackgroundLocatorPlugin")) {
+        GeneratedPluginRegistrant.register(with: registry)
+    }
 }

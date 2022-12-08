@@ -1,11 +1,60 @@
+import 'dart:async';
+
+import 'package:background_locator/background_locator.dart';
+import 'package:background_locator/settings/ios_settings.dart';
+import 'package:background_locator/settings/locator_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart' as geo;
 import 'package:pedometer/pedometer.dart';
 
 main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final permission = await geo.Geolocator.checkPermission();
+  if (permission == geo.LocationPermission.denied ||
+      permission == geo.LocationPermission.deniedForever) {
+    await geo.Geolocator.requestPermission();
+  }
+
+  await startLocationService();
+
+  runApp(const MyApp());
+}
+
+startLocationService() async {
+  final isRunning = await BackgroundLocator.isServiceRunning();
+  print("Start running location service");
+  await BackgroundLocator.initialize();
+  await BackgroundLocator.registerLocationUpdate(
+    notificationBackground,
+    autoStop: false,
+    initCallback: initCallback,
+    disposeCallback: disposeCallback,
+    iosSettings: const IOSSettings(
+      accuracy: LocationAccuracy.NAVIGATION,
+      distanceFilter: 0,
+    ),
+  );
+  // geo.Geolocator.getPositionStream(
+  //   locationSettings: const geo.LocationSettings(),
+  // ).listen(notificationBackground);
+  final step = await Pedometer.stepCountStream.first;
+  print("first step ${step.steps}");
+}
+
+initCallback(_) {
+  print("Init callback");
+}
+
+disposeCallback() {
+  print("Dispose callback");
+}
+
+@pragma('vm:entry-point')
+notificationBackground(_) async {
+  final step = await Pedometer.stepCountStream.first;
+  print("Background locator ${step.steps}");
   final settings = DarwinInitializationSettings(
     requestAlertPermission: true,
     notificationCategories: [
@@ -17,12 +66,12 @@ main() async {
       ),
     ],
   );
-
   await FlutterLocalNotificationsPlugin().initialize(
     InitializationSettings(
       iOS: settings,
     ),
-    onDidReceiveBackgroundNotificationResponse: notificationBackground,
+    onDidReceiveBackgroundNotificationResponse: _notificationHandler,
+    onDidReceiveNotificationResponse: _notificationHandler,
   );
 
   await FlutterLocalNotificationsPlugin()
@@ -31,34 +80,15 @@ main() async {
       ?.requestPermissions(
         alert: true,
       );
-
-  final permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied ||
-      permission == LocationPermission.deniedForever) {
-    await Geolocator.requestPermission();
-  }
-  final setting = AppleSettings(
-    accuracy: LocationAccuracy.best,
-    allowBackgroundLocationUpdates: true,
-    activityType: ActivityType.fitness,
-    showBackgroundLocationIndicator: true,
+  await FlutterLocalNotificationsPlugin().show(
+    0,
+    'pedometer $step',
+    null,
+    null,
   );
-  Geolocator.getPositionStream(locationSettings: setting)
-      .listen((position) async {
-    final step = await Pedometer.stepCountStream.first;
-    await FlutterLocalNotificationsPlugin().show(
-      0,
-      'pedometer ${step.steps}',
-      null,
-      null,
-    );
-  });
-
-  runApp(const MyApp());
 }
 
-@pragma('vm:entry-point')
-void notificationBackground(_) {}
+_notificationHandler(_) {}
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -105,21 +135,26 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
+  StreamSubscription? sub;
 
-  Future _incrementCounter() async {
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-    );
-    print(position);
+  @override
+  void initState() {
+    super.initState();
+    getSteps();
+  }
 
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  void getSteps() {
+    sub = Pedometer.stepCountStream.listen((step) {
+      setState(() {
+        _counter = step.steps;
+      });
     });
+  }
+
+  @override
+  void dispose() {
+    sub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -157,7 +192,7 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             const Text(
-              'You have pushed the button this many times:',
+              'You walked this many steps:',
             ),
             Text(
               '$_counter',
@@ -166,11 +201,6 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
