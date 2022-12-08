@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grpc_chat/src/client.dart';
 
 void main() {
+  final Stream a;
   runApp(MyWidget());
 }
 
