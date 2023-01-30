@@ -24,13 +24,17 @@ class ChatService extends GrpcChatServiceBase {
   Stream<Message> chat(ServiceCall call, Stream<Message> request) async* {
     final broadCastingStream = broadCasting.stream;
 
-    request.listen((message) {
-      broadCasting.add(BroadCastMessage(call, message));
-    }, onDone: () {
-      broadCasting.add(BroadCastMessage(call, Message(), true));
-    }, onError: (_) {
-      broadCasting.add(BroadCastMessage(call, Message(), true));
-    }, cancelOnError: true);
+    request.listen(
+      (message) {
+        broadCasting.add(BroadCastMessage(call, message));
+      },
+      onDone: () {
+        broadCasting.add(BroadCastMessage(call, Message(), true));
+      },
+      onError: (_) {
+        broadCasting.add(BroadCastMessage(call, Message(), true));
+      },
+    );
 
     await for (final message in broadCastingStream) {
       // send to client

@@ -12,5 +12,6 @@ Future main() async {
   await for (final input in stdin.transform(const Utf8Decoder())) {
     print("\rSend $input");
     client.send(input);
+    await client.close();
   }
 }

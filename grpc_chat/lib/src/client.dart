@@ -38,6 +38,7 @@ class ChatClient {
   }
 
   close() async {
+    await _responseStream.cancel();
     await _channel.shutdown();
   }
 }
