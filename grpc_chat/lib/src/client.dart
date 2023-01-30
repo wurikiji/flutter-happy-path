@@ -32,11 +32,12 @@ class ChatClient {
     try {
       _chatController.add(message.trim());
     } catch (e) {
+      _responseStream.cancel();
       print(e);
     }
   }
 
   close() {
-    _responseStream.cancel();
+    _channel.shutdown();
   }
 }
