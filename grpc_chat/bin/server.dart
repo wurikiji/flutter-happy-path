@@ -12,9 +12,10 @@ Future main() async {
 }
 
 class BroadCastMessage {
-  BroadCastMessage(this.caller, this.message);
+  BroadCastMessage(this.caller, this.message, [this.terminate = false]);
   final ServiceCall caller;
   final Message message;
+  final bool terminate;
 }
 
 class ChatService extends GrpcChatServiceBase {
@@ -25,12 +26,18 @@ class ChatService extends GrpcChatServiceBase {
 
     request.listen((message) {
       broadCasting.add(BroadCastMessage(call, message));
-    }, onDone: () {}, onError: (_) {}, cancelOnError: true);
+    }, onDone: () {
+      broadCasting.add(BroadCastMessage(call, Message(), true));
+    }, onError: (_) {
+      broadCasting.add(BroadCastMessage(call, Message(), true));
+    }, cancelOnError: true);
 
     await for (final message in broadCastingStream) {
       // send to client
       if (call != message.caller) {
         yield message.message;
+      } else if (message.terminate) {
+        break;
       }
     }
   }
