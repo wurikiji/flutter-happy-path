@@ -37,7 +37,7 @@ class ChatClient {
     }
   }
 
-  close() {
-    _channel.shutdown();
+  close() async {
+    await _channel.shutdown();
   }
 }
