@@ -10,8 +10,6 @@ Future main() async {
     print('Got message: ${message.text}');
   });
   await for (final input in stdin.transform(const Utf8Decoder())) {
-    print("\rSend $input");
     client.send(input);
-    await client.close();
   }
 }
